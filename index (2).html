@@ -198,7 +198,11 @@
 </head>
 <body>
 
-    <audio id="bg-music" loop></audio>
+    <audio id="bg-music" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="correct-sfx" src="correct.mp3" preload="auto"></audio> 
+    <audio id="wrong-sfx" src="wrong.mp3" preload="auto"></audio> 
     <div id="music-note" title="點擊切換音樂"><span id="music-icon">🔇</span></div>
 
     <button id="start-button">點擊開始遊戲</button>
@@ -271,7 +275,7 @@
         ];
 
         // ----------------------------------------------------
-        // 2. 遊戲變數與 DOM 元素
+        // 2. 遊戲變數與 DOM 元素 (🚩 修正在這裡：新增音效變數)
         // ----------------------------------------------------
         let score = 0;
         let time = 60; // 遊戲時間 (秒)
@@ -292,7 +296,12 @@
         const finalScoreDisplay = document.getElementById('final-score');
         const restartButton = document.getElementById('restart-button');
         const bgMusic = document.getElementById('bg-music');
-        const musicIcon = document.getElementById('music-icon'); // 修復: 取得音樂圖標
+        
+        // 🚩 新增：獲取答對/答錯音效元素
+        const correctSfx = document.getElementById('correct-sfx'); 
+        const wrongSfx = document.getElementById('wrong-sfx'); 
+
+        const musicIcon = document.getElementById('music-icon'); 
         const musicNote = document.getElementById('music-note');
         const startButton = document.getElementById('start-button');
         const gameContainer = document.getElementById('game-container');
@@ -302,7 +311,7 @@
         // 3. 核心遊戲邏輯
         // ----------------------------------------------------
 
-        // 3.1 隨機選擇地鼠洞
+        // 3.1 隨機選擇地鼠洞 (不變)
         function randomHole(moles) {
             const idx = Math.floor(Math.random() * moles.length);
             const hole = moles[idx];
@@ -313,10 +322,9 @@
             return hole;
         }
 
-        // 3.2 隨機選擇題目
+        // 3.2 隨機選擇題目 (不變)
         function randomQuestion() {
             if (availableQuestions.length === 0) {
-                // 如果所有題目都用完了，則重新載入全部題庫
                 availableQuestions = [...questions]; 
             }
             const idx = Math.floor(Math.random() * availableQuestions.length);
@@ -325,52 +333,44 @@
             return q;
         }
 
-        // 3.3 地鼠彈出 (並設定題目)
+        // 3.3 地鼠彈出 (不變)
         function peep() {
             if (time <= 0) return;
 
             const mole = randomHole(moles);
             currentQuestion = randomQuestion(); 
 
-            // 在地鼠身上顯示單字或片語
             mole.textContent = currentQuestion.word;
             mole.classList.add('visible');
 
-            // 地鼠彈出 0.5s ~ 1.5s 後隱藏
             const peepTime = Math.round(Math.random() * 1000) + 500;
             setTimeout(() => {
                 mole.classList.remove('visible');
             }, peepTime);
 
-            // 繼續下一次彈出
-            moleTimerId = setTimeout(peep, 800 + Math.random() * 1000); // 1.5s ~ 2.5s 間隔
+            moleTimerId = setTimeout(peep, 800 + Math.random() * 1000); 
         }
 
-        // 3.4 處理點擊地鼠事件
+        // 3.4 處理點擊地鼠事件 (不變)
         function handleMoleClick(e) {
-            // 只有在地鼠可見且題目彈窗未顯示時，才能點擊
             if (!e.target.classList.contains('visible') || modal.style.display === 'flex') {
                 return; 
             }
 
-            // 清除地鼠身上的題目資訊 (防止連點)
             e.target.textContent = '';
-            // 點擊後立刻將地鼠隱藏
             e.target.classList.remove('visible');
             
-            // 清除地鼠彈出計時器，暫停彈出
             clearTimeout(moleTimerId);
 
             showQuestionModal(currentQuestion);
         }
 
-        // 3.5 顯示題目彈窗
+        // 3.5 顯示題目彈窗 (不變)
         function showQuestionModal(q) {
             questionText.textContent = q.question;
             optionsContainer.innerHTML = '';
             feedbackDisplay.textContent = '';
             
-            // 隨機排列選項
             const shuffledOptions = shuffleArray(q.options);
 
             shuffledOptions.forEach(option => {
@@ -384,9 +384,8 @@
             modal.style.display = 'flex';
         }
 
-        // 3.6 檢查答案並提供回饋
+        // 3.6 檢查答案並提供回饋 (🚩 修正在這裡：新增音效播放邏輯)
         function checkAnswer(selectedOption, q) {
-            // 禁用所有選項按鈕
             Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
 
             if (selectedOption === q.answer) {
@@ -394,19 +393,31 @@
                 scoreDisplay.textContent = score;
                 feedbackDisplay.innerHTML = `🎉 **正確！棒極了！** (+1分)`;
                 feedbackDisplay.className = 'correct';
+                
+                // 🚩 播放答對音效
+                if (correctSfx) {
+                    correctSfx.currentTime = 0; 
+                    correctSfx.play().catch(e => console.log("無法播放答對音效:", e));
+                }
+                
             } else {
                 feedbackDisplay.innerHTML = `❌ **錯誤！** 正確答案是：**${q.answer}**。<br>提示: ${q.hint}`;
                 feedbackDisplay.className = 'incorrect';
+                
+                // 🚩 播放答錯音效
+                if (wrongSfx) {
+                    wrongSfx.currentTime = 0;
+                    wrongSfx.play().catch(e => console.log("無法播放答錯音效:", e));
+                }
             }
 
-            // 1.5 秒後關閉彈窗並繼續遊戲
             setTimeout(() => {
                 modal.style.display = 'none';
-                peep(); // 繼續地鼠彈出
+                peep(); 
             }, 1500);
         }
 
-        // 3.7 遊戲計時器
+        // 3.7 遊戲計時器 (不變)
         function countdown() {
             time--;
             timerDisplay.textContent = time;
@@ -418,16 +429,13 @@
             }
         }
 
-        // 3.8 遊戲結束
+        // 3.8 遊戲結束 (不變)
         function gameOver() {
-            // 清除所有計時器
             clearInterval(timerId);
             clearTimeout(moleTimerId);
             
-            // 隱藏所有彈出的地鼠
             moles.forEach(mole => mole.classList.remove('visible'));
 
-            // 暫停音樂
             if (bgMusic && !bgMusic.paused) {
                 bgMusic.pause();
                 musicIcon.textContent = '🔇';
@@ -437,7 +445,7 @@
             gameOverModal.style.display = 'flex';
         }
 
-        // 3.9 初始化/開始遊戲 (修正重點：移除自動音樂播放)
+        // 3.9 初始化/開始遊戲 (不變)
         function startGame() {
             score = 0;
             time = 60;
@@ -445,13 +453,11 @@
             timerDisplay.textContent = time;
             gameOverModal.style.display = 'none';
             modal.style.display = 'none';
-            availableQuestions = [...questions]; // 重置題庫
+            availableQuestions = [...questions]; 
             
-            // 清除任何舊的計時器，防止重複啟動
             clearInterval(timerId);
             clearTimeout(moleTimerId);
 
-            // 開始計時與地鼠彈出
             timerId = setInterval(countdown, 1000);
             peep();
         }
@@ -460,7 +466,7 @@
         // 4. 工具函數與事件監聽
         // ----------------------------------------------------
 
-        // Fisher-Yates 洗牌演算法 (用於隨機排列選項)
+        // Fisher-Yates 洗牌演算法 (不變)
         function shuffleArray(array) {
             const arr = [...array];
             for (let i = arr.length - 1; i > 0; i--) {
@@ -470,26 +476,22 @@
             return arr;
         }
 
-        // 綁定點擊事件到所有地鼠
+        // 綁定點擊事件到所有地鼠 (不變)
         moles.forEach(mole => mole.addEventListener('click', handleMoleClick));
         
-        // 重新開始遊戲
+        // 重新開始遊戲 (不變)
         restartButton.addEventListener('click', () => {
-             // 隱藏遊戲結束畫面
             gameOverModal.style.display = 'none';
-            // 顯示遊戲區域
             gameContainer.style.display = 'block';
             startGame();
         });
 
-        // 控制音樂播放 (使用者需要點擊來啟動音樂)
+        // 控制音樂播放 (不變)
         musicNote.addEventListener('click', () => {
             if (bgMusic.paused) {
-                // 嘗試播放音樂
                 bgMusic.play().then(() => {
-                    musicIcon.textContent = '🎵'; // 播放成功
+                    musicIcon.textContent = '🎵'; 
                 }).catch(e => {
-                    // 播放失敗，可能是沒有音源，但圖標仍需更新
                     musicIcon.textContent = '🎵';
                     console.log("無法播放音樂，請檢查音源檔案路徑:", e);
                 });
@@ -499,7 +501,7 @@
             }
         });
 
-        // 首次點擊開始遊戲
+        // 首次點擊開始遊戲 (不變)
         startButton.addEventListener('click', () => {
             startButton.style.display = 'none';
             gameContainer.style.display = 'block';
