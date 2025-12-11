@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字打地鼠遊戲 - Lesson 5</title>
+    <style>
+        /* 基礎樣式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* 遊戲介面 */
+        #game-container {
+            width: 90%;
+            max-width: 800px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 狀態列 */
+        #status-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        /* 地鼠洞區域 */
+        #whack-a-mole-area {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3x3 網格 */
+            gap: 15px;
+            min-height: 450px;
+        }
+
+        /* 地鼠洞 */
+        .mole-hole {
+            position: relative;
+            background-color: #795548;
+            border-radius: 50%;
+            height: 120px;
+            cursor: pointer;
+            overflow: hidden;
+            box-shadow: inset 0 -5px 5px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        /* 地鼠本體 */
+        .mole {
+            position: absolute;
+            bottom: -50%; /* 預設隱藏在洞內 */
+            width: 80%;
+            height: 80%;
+            background-color: #a0522d;
+            border-radius: 50% 50% 10% 10%;
+            transition: bottom 0.3s ease-out; /* 動畫效果 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            font-size: 1.1em;
+            border: 3px solid #6b412b;
+            padding-top: 20px; /* 增加一點上邊距，讓地鼠看起來像在洞口 */
+            box-sizing: border-box;
+        }
+
+        /* 地鼠彈出效果 */
+        .mole.visible {
+            bottom: 0;
+        }
+
+        /* 題目/選項彈窗 */
+        #question-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #question-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        #question-text {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .option-button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.2s;
+        }
+
+        .option-button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+
+        /* 回饋區塊 */
+        #feedback {
+            margin-top: 20px;
+            font-size: 1.3em;
+            font-weight: bold;
+            min-height: 40px;
+        }
+
+        .correct { color: green; }
+        .incorrect { color: red; }
+
+        /* 遊戲結束畫面 */
+        #game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        #game-over-modal h2 { font-size: 3em; }
+        #final-score { font-size: 4em; color: yellow; }
+        #restart-button {
+            padding: 15px 30px;
+            margin-top: 20px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #2196F3;
+            color: white;
+        }
+
+        /* 提示：音樂播放 */
+        #music-note {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 2em;
+            cursor: pointer;
+        }
+
+        /* 開始按鈕 */
+        #start-button {
+            padding: 20px 40px;
+            font-size: 2em;
+            cursor: pointer;
+            background-color: #FF9800;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bg-music" loop></audio>
+    <div id="music-note" title="點擊切換音樂"><span id="music-icon">🔇</span></div>
+
+    <button id="start-button">點擊開始遊戲</button>
+
+    <div id="game-container" style="display:none;">
+        
+        <div id="status-bar">
+            <div>分數: <span id="score">0</span></div>
+            <div>時間: <span id="timer">60</span>s</div>
+        </div>
+
+        <div id="whack-a-mole-area">
+            <div class="mole-hole"><div class="mole" data-index="0"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="1"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="2"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="3"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="4"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="5"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="6"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="7"></div></div>
+            <div class="mole-hole"><div class="mole" data-index="8"></div></div>
+        </div>
+    </div>
+
+    <div id="question-modal">
+        <div id="question-content">
+            <p id="question-text"></p>
+            <div id="options-container">
+                </div>
+            <div id="feedback"></div>
+        </div>
+    </div>
+
+    <div id="game-over-modal">
+        <h2>遊戲結束！</h2>
+        <p>最終分數：<span id="final-score">0</span></p>
+        <button id="restart-button">再玩一次</button>
+    </div>
+
+    <script>
+        // ----------------------------------------------------
+        // 1. 遊戲資料庫：單字與片語題目
+        // ----------------------------------------------------
+        const questions = [
+            // 單字 (Words) - 15題
+            { id: 1, type: 'W', word: 'difficulty', question: '請問 difficulty 的中文意思是？', options: ['容易', '解決', '困難', '挑戰'], answer: '困難', hint: 'SYN: trouble' },
+            { id: 2, type: 'W', word: 'otherwise', question: '請問 otherwise 的中文意思是？', options: ['有時', '然後', '否則；不然', '最終'], answer: '否則；不然', hint: 'if not' },
+            { id: 3, type: 'W', word: 'aware', question: '形容詞 aware (知道的) 的反義詞是？', options: ['scared', 'confirmed', 'unaware', 'awake'], answer: 'unaware', hint: 'ANT: unaware' },
+            { id: 4, type: 'W', word: 'eventually', question: '請問 eventually (終於) 的同義詞是？', options: ['usually', 'sometimes', 'finally', 'always'], answer: 'finally', hint: 'SYN: finally' },
+            { id: 5, type: 'W', word: 'confirm', question: '動詞 confirm 的意思是：To prove that something is...', options: ['different', 'false', 'true', 'funny'], answer: 'true', hint: '確認；to prove that something is true' },
+            { id: 6, type: 'W', word: 'scared', question: '請問 scared 的同義詞是？', options: ['happy', 'frightened', 'tired', 'awake'], answer: 'frightened', hint: 'SYN: frightened or worried' },
+            { id: 7, type: 'W', word: 'approach', question: '動詞 approach 的意思是：To come near in time or...', options: ['idea', 'space', 'home', 'truck'], answer: 'space', hint: '靠近；to come near in time or space' },
+            { id: 8, type: 'W', word: 'shelter', question: '請問 shelter 的中文意思是？', options: ['百貨公司', '實驗室', '收容避難所', '動物園'], answer: '收容避難所', hint: 'A place that protects people or animals' },
+            { id: 9, type: 'W', word: 'crowded', question: '當一個地方 full of people or animals，它是？', options: ['empty', 'clean', 'crowded', 'smelly'], answer: 'crowded', hint: '擁擠的；full of people or animals' },
+            { id: 10, type: 'W', word: 'forever', question: '請問 forever 的中文意思是？', options: ['有時', '通常', '永遠', '現在'], answer: '永遠', hint: 'for all the time in the future' },
+            { id: 11, type: 'W', word: 'terrified', question: '請問 terrified 的同義詞是？', options: ['delighted', 'frightened and scared', 'bored', 'unaware'], answer: 'frightened and scared', hint: '受到驚嚇的；SYN: frightened and scared' },
+            { id: 12, type: 'W', word: 'exhausted', question: '當你 very tired 時，你是？', options: ['awake', 'terrified', 'difficult', 'exhausted'], answer: 'exhausted', hint: '精疲力竭的；very tired' },
+            { id: 13, type: 'W', word: 'awake', question: '形容詞 awake (醒著的) 的反義詞是？', options: ['asleep', 'nodding off', 'tired', 'down'], answer: 'asleep', hint: 'ANT: asleep' },
+            { id: 14, type: 'W', word: 'adopt', question: '請問 adopt (領養) 的意思是？', options: ['to buy a pet', 'to take a child or an animal as one’s own', 'to give up a child', 'to confirm a stay'], answer: 'to take a child or an animal as one’s own', hint: '領養；to take a child or an animal as one’s own' },
+            { id: 15, type: 'W', word: 'blessing', question: '請問 blessing 的中文意思是？', options: ['詛咒', '災難', '幸運的事', '困難的事'], answer: '幸運的事', hint: '幸運的事；something lucky' },
+
+            // 片語 (Phrases) - 7題
+            { id: 16, type: 'P', word: 'used to', question: '請問 used to 的意思是？', options: ['習慣於', '現在使用', '過去經常...', '想要使用'], answer: '過去經常...', hint: '過去經常……' },
+            { id: 17, type: 'P', word: 'take care of', question: '請問 take care of 的同義詞是？', options: ['throw away', 'look after', 'get rid of', 'run away'], answer: 'look after', hint: '照顧；SYN: look after' },
+            { id: 18, type: 'P', word: 'at first', question: '請問 at first 的同義詞是？', options: ['at last', 'in the end', 'in the beginning', 'eventually'], answer: 'in the beginning', hint: '起初；SYN: in the beginning' },
+            { id: 19, type: 'P', word: 'not... anymore', question: '請問 not... anymore 的中文意思是？', options: ['再等一下', '不再', '還有更多', '不是我的'], answer: '不再', hint: '不再' },
+            { id: 20, type: 'P', word: 'all of a sudden', question: '請問 all of a sudden 的同義詞是？', options: ['slowly', 'eventually', 'suddenly', 'forever'], answer: 'suddenly', hint: '突然；SYN: suddenly' },
+            { id: 21, type: 'P', word: 'at last', question: '請問 at last 的同義詞是？', options: ['at first', 'in the middle', 'eventually', 'always'], answer: 'eventually', hint: '最後；SYN: eventually' },
+            { id: 22, type: 'P', word: 'nod off', question: '請問 nod off 的中文意思是？', options: ['點頭贊成', '打瞌睡', '喚醒某人', '站起來'], answer: '打瞌睡', hint: '打瞌睡' }
+        ];
+
+        // ----------------------------------------------------
+        // 2. 遊戲變數與 DOM 元素
+        // ----------------------------------------------------
+        let score = 0;
+        let time = 60; // 遊戲時間 (秒)
+        let lastHole = null;
+        let timerId = null; 
+        let moleTimerId = null;
+        let currentQuestion = null;
+        let availableQuestions = [...questions];
+
+        const moles = document.querySelectorAll('.mole');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const modal = document.getElementById('question-modal');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackDisplay = document.getElementById('feedback');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+        const bgMusic = document.getElementById('bg-music');
+        const musicIcon = document.getElementById('music-icon'); // 修復: 取得音樂圖標
+        const musicNote = document.getElementById('music-note');
+        const startButton = document.getElementById('start-button');
+        const gameContainer = document.getElementById('game-container');
+
+
+        // ----------------------------------------------------
+        // 3. 核心遊戲邏輯
+        // ----------------------------------------------------
+
+        // 3.1 隨機選擇地鼠洞
+        function randomHole(moles) {
+            const idx = Math.floor(Math.random() * moles.length);
+            const hole = moles[idx];
+            if (hole === lastHole) {
+                return randomHole(moles); 
+            }
+            lastHole = hole;
+            return hole;
+        }
+
+        // 3.2 隨機選擇題目
+        function randomQuestion() {
+            if (availableQuestions.length === 0) {
+                // 如果所有題目都用完了，則重新載入全部題庫
+                availableQuestions = [...questions]; 
+            }
+            const idx = Math.floor(Math.random() * availableQuestions.length);
+            const q = availableQuestions[idx];
+            availableQuestions.splice(idx, 1); 
+            return q;
+        }
+
+        // 3.3 地鼠彈出 (並設定題目)
+        function peep() {
+            if (time <= 0) return;
+
+            const mole = randomHole(moles);
+            currentQuestion = randomQuestion(); 
+
+            // 在地鼠身上顯示單字或片語
+            mole.textContent = currentQuestion.word;
+            mole.classList.add('visible');
+
+            // 地鼠彈出 0.5s ~ 1.5s 後隱藏
+            const peepTime = Math.round(Math.random() * 1000) + 500;
+            setTimeout(() => {
+                mole.classList.remove('visible');
+            }, peepTime);
+
+            // 繼續下一次彈出
+            moleTimerId = setTimeout(peep, 800 + Math.random() * 1000); // 1.5s ~ 2.5s 間隔
+        }
+
+        // 3.4 處理點擊地鼠事件
+        function handleMoleClick(e) {
+            // 只有在地鼠可見且題目彈窗未顯示時，才能點擊
+            if (!e.target.classList.contains('visible') || modal.style.display === 'flex') {
+                return; 
+            }
+
+            // 清除地鼠身上的題目資訊 (防止連點)
+            e.target.textContent = '';
+            // 點擊後立刻將地鼠隱藏
+            e.target.classList.remove('visible');
+            
+            // 清除地鼠彈出計時器，暫停彈出
+            clearTimeout(moleTimerId);
+
+            showQuestionModal(currentQuestion);
+        }
+
+        // 3.5 顯示題目彈窗
+        function showQuestionModal(q) {
+            questionText.textContent = q.question;
+            optionsContainer.innerHTML = '';
+            feedbackDisplay.textContent = '';
+            
+            // 隨機排列選項
+            const shuffledOptions = shuffleArray(q.options);
+
+            shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'option-button';
+                button.textContent = option;
+                button.onclick = () => checkAnswer(option, q);
+                optionsContainer.appendChild(button);
+            });
+
+            modal.style.display = 'flex';
+        }
+
+        // 3.6 檢查答案並提供回饋
+        function checkAnswer(selectedOption, q) {
+            // 禁用所有選項按鈕
+            Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
+
+            if (selectedOption === q.answer) {
+                score++;
+                scoreDisplay.textContent = score;
+                feedbackDisplay.innerHTML = `🎉 **正確！棒極了！** (+1分)`;
+                feedbackDisplay.className = 'correct';
+            } else {
+                feedbackDisplay.innerHTML = `❌ **錯誤！** 正確答案是：**${q.answer}**。<br>提示: ${q.hint}`;
+                feedbackDisplay.className = 'incorrect';
+            }
+
+            // 1.5 秒後關閉彈窗並繼續遊戲
+            setTimeout(() => {
+                modal.style.display = 'none';
+                peep(); // 繼續地鼠彈出
+            }, 1500);
+        }
+
+        // 3.7 遊戲計時器
+        function countdown() {
+            time--;
+            timerDisplay.textContent = time;
+
+            if (time <= 0) {
+                clearInterval(timerId);
+                clearTimeout(moleTimerId);
+                gameOver();
+            }
+        }
+
+        // 3.8 遊戲結束
+        function gameOver() {
+            // 清除所有計時器
+            clearInterval(timerId);
+            clearTimeout(moleTimerId);
+            
+            // 隱藏所有彈出的地鼠
+            moles.forEach(mole => mole.classList.remove('visible'));
+
+            // 暫停音樂
+            if (bgMusic && !bgMusic.paused) {
+                bgMusic.pause();
+                musicIcon.textContent = '🔇';
+            }
+
+            finalScoreDisplay.textContent = score;
+            gameOverModal.style.display = 'flex';
+        }
+
+        // 3.9 初始化/開始遊戲 (修正重點：移除自動音樂播放)
+        function startGame() {
+            score = 0;
+            time = 60;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = time;
+            gameOverModal.style.display = 'none';
+            modal.style.display = 'none';
+            availableQuestions = [...questions]; // 重置題庫
+            
+            // 清除任何舊的計時器，防止重複啟動
+            clearInterval(timerId);
+            clearTimeout(moleTimerId);
+
+            // 開始計時與地鼠彈出
+            timerId = setInterval(countdown, 1000);
+            peep();
+        }
+
+        // ----------------------------------------------------
+        // 4. 工具函數與事件監聽
+        // ----------------------------------------------------
+
+        // Fisher-Yates 洗牌演算法 (用於隨機排列選項)
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // 綁定點擊事件到所有地鼠
+        moles.forEach(mole => mole.addEventListener('click', handleMoleClick));
+        
+        // 重新開始遊戲
+        restartButton.addEventListener('click', () => {
+             // 隱藏遊戲結束畫面
+            gameOverModal.style.display = 'none';
+            // 顯示遊戲區域
+            gameContainer.style.display = 'block';
+            startGame();
+        });
+
+        // 控制音樂播放 (使用者需要點擊來啟動音樂)
+        musicNote.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                // 嘗試播放音樂
+                bgMusic.play().then(() => {
+                    musicIcon.textContent = '🎵'; // 播放成功
+                }).catch(e => {
+                    // 播放失敗，可能是沒有音源，但圖標仍需更新
+                    musicIcon.textContent = '🎵';
+                    console.log("無法播放音樂，請檢查音源檔案路徑:", e);
+                });
+            } else {
+                bgMusic.pause();
+                musicIcon.textContent = '🔇';
+            }
+        });
+
+        // 首次點擊開始遊戲
+        startButton.addEventListener('click', () => {
+            startButton.style.display = 'none';
+            gameContainer.style.display = 'block';
+            startGame();
+        });
+
+
+    </script>
+</body>
+</html>
